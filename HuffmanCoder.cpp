@@ -59,6 +59,7 @@ bool HuffmanCoder::LoadHuffmanTableFromFile(const char* fileName)
 		int length = 0;
 		float weight = 0;
 		std::string code = "";
+		std::string truncatedHuffmanMarkerCandidate = "";
 
 		// read file and parse the lines
 		do {
@@ -99,6 +100,9 @@ bool HuffmanCoder::LoadHuffmanTableFromFile(const char* fileName)
 				} else {
 					if (mDebug > kWarning) std::cout << "WARNING: Huffman code for value " << value << " exists already in truncated Huffman table" << std::endl;
 				}
+			} else if ((unsigned int) length < truncatedHuffmanMarkerCandidate.size() || truncatedHuffmanMarkerCandidate.size() == 0) {
+			// else, a possible marker is stored
+				truncatedHuffmanMarkerCandidate = code;
 			}
 		} while ((unsigned int) value < (mHuffmanRange-1));
 
@@ -107,9 +111,9 @@ bool HuffmanCoder::LoadHuffmanTableFromFile(const char* fileName)
 		tableStream.close();
 
 		if (mRawDataMarkerSize == 0) {
-			// if no raw data marker was found, it is set to a serie of 1s, one more than the 
-			// max length of Huffman code in order to not influence the correct decoding.
-			for (unsigned int i = 0; i <= mMaxCodeLength; i++) mRawDataMarker += "1";
+			// if no raw data marker was found, one of the shortest codes which were thrown away
+			// is used. 
+			mRawDataMarker = truncatedHuffmanMarkerCandidate;
 			mRawDataMarkerSize = mRawDataMarker.size();
 			if (mDebug > kWarning) std::cout << "WARNING: No raw data marker was found, it is set to " << mRawDataMarker << std::endl;
 		}

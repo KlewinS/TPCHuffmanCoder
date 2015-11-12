@@ -59,6 +59,7 @@ class HuffmanCoder
 		/*
 		 * Generates the Huffman table for the length-limited Huffman according to the 
 		 * givene parameters from the existing Huffman table.
+		 * TODO: fixing length of marker
 		 */
 		bool GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsigned int numberOfWords);
 
@@ -129,9 +130,6 @@ class HuffmanCoder
 		 * casted as integer, of 'weight' as float, of 'length' as integer and of 'code' as string
 		 * with length of 'length'. The separators of the columns doesn't matter because the '=' 
 		 * sign is looked for.
-		 */
-		 /*
-		  * TODO: correct implementation of generation of raw data marker
 		  */
 		bool LoadHuffmanTableFromFile(const char * fileName);
 
