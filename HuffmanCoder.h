@@ -112,6 +112,12 @@ class HuffmanCoder
 		 */
 		unsigned int BinaryStringToInt(std::string value, int length = 10);
 
+		/*
+		 * Set the length of the raw data marker for the length-limited Huffman to the given value.
+		 * Has to be set BEFORE calling GenerateLengthLimitedHuffman(), else it has no effect.
+		 * Set to 0 to disable the fixation.
+		 */
+		void SetLLRawDataMarkerSize(unsigned int size) { mLLRawDataMarkerFixedSize = size;};
 
 	private:
 		/*
@@ -175,6 +181,9 @@ class HuffmanCoder
 		// marker for raw data (not found in length-limited Huffman table)
 		std::string mLLRawDataMarker;
 		unsigned int mLLRawDataMarkerSize;
+
+		// fix marker length for length-limited Huffman
+		unsigned int mLLRawDataMarkerFixedSize;
 
 		// Table with Huffman Codes
 		std::map<unsigned int, HuffmanCode> mHuffmanTable;

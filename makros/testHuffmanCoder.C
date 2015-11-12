@@ -137,8 +137,9 @@ void testHuffmanCoder(TString CurrentMacroName, float rateForTable)
 				double durationNew = double(t3 - t2) / CLOCKS_PER_SEC;
 				std::cout << "time old: " << durationOld << "\ttime new: " << durationNew << std::endl;
 			if (huffman[count] && newHuffman[count]) {
-				bool result1 = true;//huffman[count]->GenerateLLHuffmanCode(Bits[i],Words[j]);
-				bool result2 = true;//newHuffman[count]->GenerateLengthLimitedHuffman(Bits[i],Words[j]);
+				bool result1 = huffman[count]->GenerateLLHuffmanCode(Bits[i],Words[j]);
+				newHuffman[count]->SetLLRawDataMarkerSize(5);
+				bool result2 = newHuffman[count]->GenerateLengthLimitedHuffman(Bits[i],Words[j]);
 				if (result1 && result2) ++count;
 				else { 
 					delete huffman[count];
