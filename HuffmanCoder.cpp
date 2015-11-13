@@ -159,7 +159,7 @@ std::string HuffmanCoder::IntToBinaryString(unsigned int value, unsigned int len
 	if (value > pow(2,length)-1) {   
 		if (mDebug > kWarning) std::cout << "WARNING: Value (" << value << ") bigger than a " << length << "bit number" << std::endl;
 	} else {
-		for (unsigned int i = length-1; i >= 0; i--) {   
+		for (int i = length-1; i >= 0; i--) {   
 			returnString += std::to_string((value >> i) & 0x1);
 		}
 	}
