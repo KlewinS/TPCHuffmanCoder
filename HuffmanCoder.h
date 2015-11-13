@@ -119,6 +119,20 @@ class HuffmanCoder
 		 */
 		void SetLLRawDataMarkerSize(unsigned int size) { mLLRawDataMarkerFixedSize = size;};
 
+		/*
+		 * Writes the truncated or, if available, length-limited Huffman tables into the specified
+		 * files in Verilog coding style. Those tables can be included in a 'case'-statement. One 
+		 * table is written for the lengths of the Huffman codes and one table for the actual codes.
+		 */
+		bool WriteVerilogEncoderTable(const char* codeFilename, const char* lengthFilename);
+
+		/*
+		 * Writes the truncated or, if available, length-limited Huffman tables into the specified
+		 * files in Verilog coding style. Those tables can be included in a 'case'-statement. One 
+		 * table is written for the lengths of the Huffman codes and one table for the actual codes.
+		 */
+		bool WriteVerilogDecoderTable(const char* codeFilename);
+
 	private:
 		/*
 		 * Loads a Huffman table from the specified file. The format has to be the following one:

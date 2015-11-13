@@ -136,11 +136,32 @@ void testHuffmanCoder(TString CurrentMacroName, float rateForTable)
 				double durationOld = double(t2 - t1) / CLOCKS_PER_SEC;
 				double durationNew = double(t3 - t2) / CLOCKS_PER_SEC;
 				std::cout << "time old: " << durationOld << "\ttime new: " << durationNew << std::endl;
+
+			TString codeTableName("VerilogTruncatedHuffmanCodes.v");
+			TString decoderCodeTableName("VerilogTruncatedHuffmanDecoderCodes.v");
+			TString lengthTableName("VerilogTruncatedHuffmanLengths.v");
+			newHuffman[count]->WriteVerilogEncoderTable(codeTableName.Data(), lengthTableName.Data());
+			newHuffman[count]->WriteVerilogDecoderTable(decoderCodeTableName.Data());
+
 			if (huffman[count] && newHuffman[count]) {
 				bool result1 = huffman[count]->GenerateLLHuffmanCode(Bits[i],Words[j]);
-				newHuffman[count]->SetLLRawDataMarkerSize(5);
+				newHuffman[count]->SetLLRawDataMarkerSize(count+1);
 				bool result2 = newHuffman[count]->GenerateLengthLimitedHuffman(Bits[i],Words[j]);
-				if (result1 && result2) ++count;
+				if (result1 && result2) {
+					TString codeTableNameLL("VerilogLengthLimitedHuffmanCodes_");
+					codeTableNameLL += count;
+					codeTableNameLL += ".v";
+					TString decoderCodeTableNameLL("VerilogLengthLimitedHuffmanDecoderCodes_");
+					decoderCodeTableNameLL += count;
+					decoderCodeTableNameLL += ".v";
+					TString lengthTableNameLL("VerilogLengthLimitedHuffmanLengths_");
+					lengthTableNameLL += count;
+					lengthTableNameLL += ".v";
+					newHuffman[count]->WriteVerilogEncoderTable(codeTableNameLL.Data(), lengthTableNameLL.Data());
+					newHuffman[count]->WriteVerilogDecoderTable(decoderCodeTableNameLL.Data());
+
+					++count;
+				}
 				else { 
 					delete huffman[count];
 					delete newHuffman[count];
