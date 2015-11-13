@@ -48,7 +48,7 @@ class HuffmanCoder
 		 * Return value indicades wether value was found in table or not. If not,
 		 * a marker is written to 'code'.
 		 */
-		bool EncodeValue(int value, std::string *code);
+		bool EncodeValue(unsigned int value, std::string *code);
 
 		/*
 		 * Decodes the first value in the given data stream and writes it to 'value'.
@@ -59,7 +59,6 @@ class HuffmanCoder
 		/*
 		 * Generates the Huffman table for the length-limited Huffman according to the 
 		 * givene parameters from the existing Huffman table.
-		 * TODO: fixing length of marker
 		 */
 		bool GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsigned int numberOfWords);
 
@@ -105,12 +104,12 @@ class HuffmanCoder
 		/*
 		 * Converts an integer value into a string with the binary representative with the given length
 		 */
-		std::string IntToBinaryString(int value, int length = 10);
+		std::string IntToBinaryString(unsigned int value, unsigned int length = 10);
 
 		/*
 		 * Converts a binary string into an integer value
 		 */
-		unsigned int BinaryStringToInt(std::string value, int length = 10);
+		unsigned int BinaryStringToInt(std::string value, unsigned int length = 10);
 
 		/*
 		 * Set the length of the raw data marker for the length-limited Huffman to the given value.

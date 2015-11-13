@@ -128,7 +128,7 @@ bool HuffmanCoder::LoadHuffmanTableFromFile(const char* fileName)
 	}
 }
 
-bool HuffmanCoder::EncodeValue(int value, std::string *code) {
+bool HuffmanCoder::EncodeValue(unsigned int value, std::string *code) {
 	// if length limited Huffman is available and can be used, use it, else the standard one
 	std::map<unsigned int, HuffmanCode>* map = NULL;
 	std::string marker;
@@ -154,22 +154,22 @@ bool HuffmanCoder::EncodeValue(int value, std::string *code) {
 	}
 }
 
-std::string HuffmanCoder::IntToBinaryString(int value, int length) {
+std::string HuffmanCoder::IntToBinaryString(unsigned int value, unsigned int length) {
 	std::string returnString = ""; 
 	if (value > pow(2,length)-1) {   
 		if (mDebug > kWarning) std::cout << "WARNING: Value (" << value << ") bigger than a " << length << "bit number" << std::endl;
 	} else {
-		for (int i = length-1; i >= 0; i--) {   
+		for (unsigned int i = length-1; i >= 0; i--) {   
 			returnString += std::to_string((value >> i) & 0x1);
 		}
 	}
 	return returnString;
 }
 
-unsigned int HuffmanCoder::BinaryStringToInt(std::string value, int length) {
+unsigned int HuffmanCoder::BinaryStringToInt(std::string value, unsigned int length) {
 	unsigned int returnValue = 0;
 	std::string valueCopy = value;
-	for (int i = 0; i < length; i++) {   
+	for (unsigned int i = 0; i < length; i++) {   
 		returnValue += (std::stoi(valueCopy.substr(0,1)) << ((length-1)-i));
 		valueCopy = valueCopy.erase(0,1);
 		if (valueCopy.size() == 0) break;
