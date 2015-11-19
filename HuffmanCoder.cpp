@@ -80,11 +80,11 @@ bool HuffmanCoder::LoadHuffmanTableFromFile(const char* fileName)
 			code = temp.substr(temp.find("=")+1);
 			code = code.substr(code.size()-length);
 
-			// Look for raw data marker in file
-			if (value == 0 && weight != 0) {
-				mRawDataMarker = code;
-				mRawDataMarkerSize = code.size();
-			}
+//			// Look for raw data marker in file
+//			if (value == 0 && weight != 0) {
+//				mRawDataMarker = code;
+//				mRawDataMarkerSize = code.size();
+//			}
 
 			// Store Huffman code in map
 			HuffmanCode hCode(value, length, weight, code);
@@ -255,7 +255,7 @@ bool HuffmanCoder::GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsi
 	// Delete elements with the lowest weight from the map again until the the length of the map is 
 	// at the given limit. The weights are added for the marker.
 	float weightOfRawDataMarker = 0;
-	while (LengthLimitedHuffmanMap.size() > mLLNumberOfWords) {
+	while (LengthLimitedHuffmanMap.size() >= mLLNumberOfWords) {
 		weightOfRawDataMarker += LengthLimitedHuffmanMap.begin()->first;
 		LengthLimitedHuffmanMap.erase(LengthLimitedHuffmanMap.begin());
 	}

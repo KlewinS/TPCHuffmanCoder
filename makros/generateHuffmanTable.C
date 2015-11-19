@@ -32,7 +32,7 @@ void generateHuffmanTable(TString CurrentMacroName, float rate)
 	TString PedestalFileName("../../generator/pedestal-statistics.txt");
 	TString VerilogLLHuffmanDecoderTable("VerilogHuffmanDecoderTable.v");
 	TString VerilogLLHuffmanCodeTable("VerilogHuffmanEnocderTable.v");
-	TString VerilogLLHuffmanLengthTable("VerilogHuffmanEnoderLengthTable.v");
+	TString VerilogLLHuffmanLengthTable("VerilogHuffmanEncoderLengthTable.v");
 
 	TString baseName(CurrentMacroName);
 		baseName += "_";

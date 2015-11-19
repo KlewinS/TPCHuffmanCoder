@@ -73,6 +73,16 @@ class HuffmanCoder
 		unsigned int GetLLNumberOfWords() { return mLLNumberOfWords;};
 
 		/*
+		 * Returns length of marker for Length-limited Huffman
+		 */
+		unsigned int GetLLMarkerLength() { return mLLRawDataMarkerSize;};
+
+		/*
+		 * Returns length of marker for truncated Huffman
+		 */
+		unsigned int GetMarkerLength() { return mRawDataMarkerSize;};
+
+		/*
 		 * struct for Huffman code
 		 */
 		struct HuffmanCode
