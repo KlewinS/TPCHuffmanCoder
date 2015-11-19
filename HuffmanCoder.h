@@ -124,9 +124,18 @@ class HuffmanCoder
 		/*
 		 * Set the length of the raw data marker for the length-limited Huffman to the given value.
 		 * Has to be set BEFORE calling GenerateLengthLimitedHuffman(), else it has no effect.
-		 * Set to 0 to disable the fixation.
+		 * Set to 0 to disable the fixation. The fixed size is stronger than the max size, therefor
+		 * if this is set, the max size is ignored.
 		 */
 		void SetLLRawDataMarkerSize(unsigned int size) { mLLRawDataMarkerFixedSize = size;};
+
+		/*
+		 * Set the maximum allowed length of the raw data marker for the length-limited Huffman to 
+		 * the given value. Has to be set BEFORE calling GenerateLengthLimitedHuffman(), else it has
+		 * no effect. Set to 0 to disable. The fixed size is stronger than the max size, therefore
+		 * it will be ignored if the fixed size is set.
+		 */
+		void SetLLRawDataMarkerMaxSize(unsigned int size) { mLLRawDataMarkerMaxSize = size;};
 
 		/*
 		 * Writes the truncated or, if available, length-limited Huffman tables into the specified
@@ -207,6 +216,9 @@ class HuffmanCoder
 
 		// fix marker length for length-limited Huffman
 		unsigned int mLLRawDataMarkerFixedSize;
+		
+		// fix max marker length for length-limited Huffman
+		unsigned int mLLRawDataMarkerMaxSize;
 
 		// Table with Huffman Codes
 		std::map<unsigned int, HuffmanCode> mHuffmanTable;

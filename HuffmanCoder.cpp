@@ -30,6 +30,7 @@ HuffmanCoder::HuffmanCoder(
 	, mLLRawDataMarker("")
 	, mLLRawDataMarkerSize(0)
 	, mLLRawDataMarkerFixedSize(0)
+	, mLLRawDataMarkerMaxSize(0)
 	, mHuffmanTable()
 	, mTruncatedHuffmanTable()
 	, mLengthLimitedHuffmanTable()
@@ -294,47 +295,59 @@ bool HuffmanCoder::GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsi
 	}
 
 	// manipulate the code lengths in order to allow to fix the length of the raw data marker
-	if (mLLRawDataMarkerFixedSize != 0 && mLLRawDataMarkerFixedSize != mLLRawDataMarkerSize) {
+	if (mLLRawDataMarkerFixedSize != 0 || mLLRawDataMarkerMaxSize != 0) {
 
-		// check if intended length is possible, if not, set it to a possible value
-		if (mLLRawDataMarkerFixedSize < codeSet.begin()->length) {
-			if (mDebug > kWarning) std::cout << "WARNING: Marker is too short. Instead of " << mLLRawDataMarkerFixedSize << " it is set to " << codeSet.begin()->length << std::endl;
-			mLLRawDataMarkerFixedSize = codeSet.begin()->length;
-		} else if (mLLRawDataMarkerFixedSize > mLLMaxCodeLength) {
-			if (mDebug > kWarning) std::cout << "WARNING: Inserted marker size is longer than max code length of length-limited Huffman. It is set to the maximum length of " << mLLMaxCodeLength << std::endl;
-			mLLRawDataMarkerFixedSize = mLLMaxCodeLength;
-		}
+		// set the target size of the raw data marker
+		unsigned int targetSize;
+		if (mLLRawDataMarkerFixedSize != 0) 
+			targetSize = mLLRawDataMarkerFixedSize;
+		else if (mLLRawDataMarkerSize > mLLRawDataMarkerMaxSize)
+			targetSize = mLLRawDataMarkerMaxSize;
+		else 
+			targetSize = mLLRawDataMarkerSize;
 
-		// until length is not reached, exchange the length of the marker with the length of and
-		// element wich comes next in the direction to the intended length
-		while (mLLRawDataMarkerFixedSize != mLLRawDataMarkerSize) {
-
-			unsigned int lengthToFind = 
-				(mLLRawDataMarkerFixedSize > mLLRawDataMarkerSize) 
-				? (mLLRawDataMarkerSize+1)	// increase the length
-				: (mLLRawDataMarkerSize-1);	// decrease the length
-
-//			std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator lastInsertedElement = codeSet.end();
-			for (std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator it = codeSet.begin(); it != codeSet.end(); ++it) {
-				// find partner to swap
-				if (it->length == lengthToFind) { // && it != lastInsertedElement) {
-
-					// make a copy and delete it from the set
-					HuffmanCode h_code = *it;
-					codeSet.erase(it);
-
-					// swap the lengths
-					h_code.length = mLLRawDataMarkerSize;
-					mLLRawDataMarkerSize = lengthToFind;
-
-					// insert the changed code back into the set and save a pointer to
-					// this element to avoid pushing the same element through the whole list
-					codeSet.insert(h_code);
-					//lastInsertedElement = codeSet.insert(h_code);
-
-					// stop the for loop 
-					it = codeSet.end();
-					it++;
+		if (targetSize != mLLRawDataMarkerSize) {
+	
+			// check if intended length is possible, if not, set it to a possible value
+			if (targetSize < codeSet.begin()->length) {
+				if (mDebug > kWarning) std::cout << "WARNING: Marker is too short. Instead of " << targetSize << " it is set to " << codeSet.begin()->length << std::endl;
+				targetSize = codeSet.begin()->length;
+			} else if (targetSize > mLLMaxCodeLength) {
+				if (mDebug > kWarning) std::cout << "WARNING: Inserted marker size is longer than max code length of length-limited Huffman. It is set to the maximum length of " << mLLMaxCodeLength << std::endl;
+				targetSize = mLLMaxCodeLength;
+			}
+	
+			// until length is not reached, exchange the length of the marker with the length of and
+			// element wich comes next in the direction to the intended length
+			while (targetSize != mLLRawDataMarkerSize) {
+	
+				unsigned int lengthToFind = 
+					(targetSize > mLLRawDataMarkerSize) 
+					? (mLLRawDataMarkerSize+1)	// increase the length
+					: (mLLRawDataMarkerSize-1);	// decrease the length
+	
+	//			std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator lastInsertedElement = codeSet.end();
+				for (std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator it = codeSet.begin(); it != codeSet.end(); ++it) {
+					// find partner to swap
+					if (it->length == lengthToFind) { // && it != lastInsertedElement) {
+	
+						// make a copy and delete it from the set
+						HuffmanCode h_code = *it;
+						codeSet.erase(it);
+	
+						// swap the lengths
+						h_code.length = mLLRawDataMarkerSize;
+						mLLRawDataMarkerSize = lengthToFind;
+	
+						// insert the changed code back into the set and save a pointer to
+						// this element to avoid pushing the same element through the whole list
+						codeSet.insert(h_code);
+						//lastInsertedElement = codeSet.insert(h_code);
+	
+						// stop the for loop 
+						it = codeSet.end();
+						it++;
+					}
 				}
 			}
 		}
