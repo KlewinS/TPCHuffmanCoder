@@ -1,0 +1,16 @@
+# Compiled source #
+###################
+*.d
+*.so
+
+# Output files #
+################
+*.txt
+*.root
+*.v
+Plots/
+logs/
+
+# vim temp files #
+##################
+*.swp
