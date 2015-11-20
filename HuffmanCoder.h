@@ -83,6 +83,16 @@ class HuffmanCoder
 		unsigned int GetMarkerLength() { return mRawDataMarkerSize;};
 
 		/*
+		 * Returns marker for length-limited Huffman
+		 */
+		std::string GetLLMarker() { return mLLRawDataMarker;};
+
+		/*
+		 * Returns marker for truncated Huffman
+		 */
+		std::string GetMarker() { return mRawDataMarker;};
+
+		/*
 		 * struct for Huffman code
 		 */
 		struct HuffmanCode
@@ -150,6 +160,23 @@ class HuffmanCoder
 		 * table is written for the lengths of the Huffman codes and one table for the actual codes.
 		 */
 		bool WriteVerilogDecoderTable(const char* codeFilename);
+
+		/*
+		 * Returns the Huffman table
+		 */
+		std::map<unsigned int, TPC::HuffmanCoder::HuffmanCode> GetHuffmanTable() {return mHuffmanTable;};
+
+		/*
+		 * Returns the truncated Huffman table
+		 */
+		std::map<unsigned int, TPC::HuffmanCoder::HuffmanCode> GetTruncatedHuffmanTable() {return mTruncatedHuffmanTable;};
+
+		/*
+		 * Returns the length-limited Huffman table
+		 */
+		std::map<unsigned int, TPC::HuffmanCoder::HuffmanCode> GetLengthLimitedHuffmanTable() {return mLengthLimitedHuffmanTable;};
+
+
 
 	private:
 		/*
