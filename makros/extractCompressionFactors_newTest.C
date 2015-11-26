@@ -24,30 +24,28 @@ void printHist(TH1* hist, TString baseName);
 void printHist(TH2* hist, TString baseName);
 void printProf(TProfile* prof, TString baseName,TString axis);
 
-void extractCompressionFactors(TString CurrentMacroName, int generatorConfiguration, float rateForTable)
+void extractCompressionFactors_newTest(TString CurrentMacroName, float rateForTable, const int numberOfUncompressedWords)
 {
-//	float rateForTable = 5;
 	////////////////////////////////////////////////////////////////////////////////
     // input / output files
 //	const char* dataFiles = "datafiles_firstHalf.txt";
 //	const char* dataFiles = "datafiles_onlyfirst.txt";
-//	const char* dataFiles = "datafiles_firstTen.txt";
+	const char* dataFiles = "datafiles_firstTen.txt";
 //	const char* dataFiles = "datafiles_secondHalf.txt";
-	const char* dataFiles = "datafiles_all.txt";
+//	const char* dataFiles = "datafiles_all.txt";
 	TString HuffmanBaseFileName("TPCRawSignalDifference_HuffmanTable_");
 	TString MappingFileName("../../generator/mapping.dat");
 	TString PedestalFileName("../../generator/pedestal-statistics.txt");
 
 	TString baseName(CurrentMacroName);
 //		baseName.Remove(baseName.Last('.'));
-		baseName += "_adaptedTable_";
+		baseName += "_";
 		if (rateForTable < 10) baseName += "0";
 		baseName += rateForTable;
 		baseName += "tableRate_";
-
-		baseName += generatorConfiguration;
-		baseName += "generatorConfiguration_";
-
+		if (numberOfUncompressedWords < 10) baseName += "0";
+		baseName += numberOfUncompressedWords;
+		baseName += "_";
 		baseName.Remove(baseName.Last('.'),2);
 	TString plotBaseName(baseName);
     	plotBaseName.Insert(plotBaseName.Last('/'),"/Plots");
@@ -65,7 +63,7 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 	int TimeFrameNumber = 0;
 	// DDL range
     const int DDLmin = 0;
-    const int DDLmax = 10;
+    const int DDLmax = 71;
 
 	// Padrow range
 	const int PadrowMin = -1;
@@ -87,17 +85,21 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 
 	// Data format
 	const int headerSize = 50; // bit
-	const bool enableHeader = true;
+	const bool enableHeader = false;
 
 	// data generator
+	const int numberOfGenerators = 3;//7;
 	const int mode = 3;
 	const int nCol = 5;
 	const float rate = 5.0;
 
+
+//	const int numberOfUncompressedWords = 0;
+
 	////////////////////////////////////////////////////////////////////////////////
 	// Huffman
 	HuffmanBaseFileName += (mode==0||mode==2)?nCol:rateForTable;//nCol;
-	HuffmanBaseFileName += "mergedCollisions_7generatorConfiguration";
+	HuffmanBaseFileName += "mergedCollisions";
     TString HuffmanTableNameRoot(HuffmanBaseFileName);
     HuffmanTableNameRoot += ".root";
     TString HuffmanTableNameTxt(HuffmanBaseFileName);
@@ -117,17 +119,28 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 	}
 	hltHuffman = (AliHLTHuffman*)obj;
 
-    const unsigned int numberOfHuffmans = 4;
+    const unsigned int numDiffBits = 1;//2;
+    unsigned int Bits[numDiffBits] = {10};//{10,12}; 
+    const unsigned int numDiffWords = 1;//5; 
+    unsigned int Words[numDiffWords] = {30};//{30,50,70,90,110};
+    unsigned int numberOfHuffmans = numDiffBits*numDiffWords;
     TPC::HuffmanCoder* huffman[numberOfHuffmans];
-    for (unsigned int i = 0; i < numberOfHuffmans; i++) {
-        huffman[i] = new TPC::HuffmanCoder(HuffmanTableNameTxt.Data());
-		huffman[i]->SetLLRawDataMarkerMaxSize(10);
-	}
-	
-	huffman[0]->GenerateLengthLimitedHuffman(10,35);
-	huffman[1]->GenerateLengthLimitedHuffman(10,75);
-	huffman[2]->GenerateLengthLimitedHuffman(12,35);
-	huffman[3]->GenerateLengthLimitedHuffman(12,110);
+    unsigned int count = 0;
+    for (unsigned int i = 0; i < numDiffBits; i++) {
+        for (unsigned int j = 0; j < numDiffWords; j++) {
+            std::cout << "Generating Huffman encoder for " << Bits[i] << " bits and " << Words[j] << " words" << std::endl << "\t";
+            huffman[count] = new TPC::HuffmanCoder(HuffmanTableNameTxt.Data());
+            if (huffman[count]) {
+				huffman[count]->SetLLRawDataMarkerMaxSize(10);
+                if (huffman[count]->GenerateLengthLimitedHuffman(Bits[i],Words[j])) ++count;
+                else { 
+                    delete huffman[count];
+                    std::cout << "WARNING: deleted last Huffman encoder" << std::endl;
+                }       
+            }       
+        }       
+    }       
+    numberOfHuffmans = count;
 
 	////////////////////////////////////////////////////////////////////////////////
 
@@ -141,7 +154,7 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 		hCompFactorStdHuffman->SetStats(0);
 
 	TH2* hCompFactorLLHuffman[numberOfHuffmans];
-	for (unsigned int i = 0; i < numberOfHuffmans; i++) {
+	for (int i = 0; i < numberOfHuffmans; i++) {
 		int bits = huffman[i]->GetLLMaxCodeLength();
 		int words = huffman[i]->GetLLNumberOfWords();
 		TString name("hCompFactor");
@@ -164,154 +177,109 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 	////////////////////////////////////////////////////////////////////////////////
 	// Data generator
 
-	TPC::DataGenerator* dg;
-	dg = new TPC::DataGenerator(mode);
-	dg->SetMappingFileName(MappingFileName);
-	dg->SetPedestalFileName(PedestalFileName);
-	dg->SetDDLRange(DDLmin,DDLmax);
-	dg->SetPadrowRange(PadrowMin,PadrowMax);
-	dg->InitZeroSuppression(ZSthreshold, ZSbaseline);
-	dg->SetApplyZeroSuppression(false);
-	dg->SetNormalizeChannels(false);
-	dg->SetApplyCommonModeEffect(false);
-	dg->SetApplyGainVariation(false);
-	dg->SetNoiseLevel(0.5);
-	
-	switch (generatorConfiguration) {
-		case 1:
-			// apply common mode effect
-			dg->SetApplyCommonModeEffect(true);
-			break;
-
-		case 2:
-			// apply noise increase by factor of 2
-			dg->SetNoiseLevel(1.1);
-			break;
-
-		case 3:
-			// apply gain variation of 20 %
-			dg->InitGainVariation(1,0.2);
-			dg->SetApplyGainVariation(true);
-			break;
-
-		case 4:
-			// common mode effect + increased noise
-			dg->SetApplyCommonModeEffect(true);
-			dg->SetNoiseLevel(1.1);
-			break;
-
-		case 5:
-			// common mode effect + gain variation
-			dg->SetApplyCommonModeEffect(true);
-			dg->InitGainVariation(1,0.2);
-			dg->SetApplyGainVariation(true);
-			break;
-
-		case 6:
-			// increased noise + gain variation
-			dg->SetNoiseLevel(1.1);
-			dg->InitGainVariation(1,0.2);
-			dg->SetApplyGainVariation(true);
-			break;
-
-		case 7:
-			// common mode effect + increased noise + gain variation
-			dg->SetApplyCommonModeEffect(true);
-			dg->SetNoiseLevel(1.1);
-			dg->InitGainVariation(1,0.2);
-			dg->SetApplyGainVariation(true);
-			break;
-
-		default:
-			// no changes, default data generator
-			break;
+	TPC::DataGenerator* dg[numberOfGenerators];
+	for (int i = 0; i < numberOfGenerators; i++) {
+		dg[i] = new TPC::DataGenerator(mode);
+		dg[i]->SetMappingFileName(MappingFileName);
+		dg[i]->SetPedestalFileName(PedestalFileName);
+		dg[i]->SetDDLRange(DDLmin,DDLmax);
+		dg[i]->SetPadrowRange(PadrowMin,PadrowMax);
+		dg[i]->InitZeroSuppression(ZSthreshold, ZSbaseline);
+		dg[i]->SetApplyZeroSuppression(false);
+		dg[i]->SetNormalizeChannels(false);
+		dg[i]->SetApplyCommonModeEffect(false);
+		if (numberOfGenerators > 1) dg[i]->Init( (mode==0||mode==2)?nCol:((i*2)+1), dataFiles);
+		else dg[i]->Init( (mode==0||mode==2)?nCol:rate, dataFiles);
 	}
-	dg->Init( (mode==0||mode==2)?nCol:rate, dataFiles);
 
 
 	////////////////////////////////////////////////////////////////////////////////
 	// start
 
-	int result = 0;
-	while ((TimeFrameNumber++ < nFrames || nFrames < 0) && result >= 0) {
-		result = dg->SimulateFrame();
-    
-		if (result < 0) {
-	  		std::cout << "Simulation of timeframe failed with error code " << result << "; aborting at timeframe no " << TimeFrameNumber << std::endl;
-	  		continue;
-		} 
-
-		std::vector<unsigned int> chindices=dg->GetChannelIndices();
-		std::cout << "Analysing timeframe: " << std::endl;
-		int count = 0;
-		float progress = 0;
-		for (std::vector<unsigned int>::iterator index = chindices.begin(); index != chindices.end(); ++index) {
-			progress = ((float)count/chindices.size());
-			if (count%1000 == 0) std::cout << std::setprecision(3) << progress * 100 << " \%\r" << std::flush;
-			count++;
-			TPC::DataGenerator::ChannelDesc_t desc = dg->GetChannelDescriptor(*index);
-			if (desc.ptr == NULL) continue;
-			int DDLnumber = ((*index)&0xffff0000)>>16;
-			int padrow = desc.padrow;
-			if (DDLnumber > 71) padrow += 63;
-	//			std::cout << desc.occupancy << std::endl;
-			if (desc.occupancy > occupancyMax) continue;
-			int signal = 0;
-			int lastSignal = -1;
-			int diff = 0;
-			std::string temp = "";
-			double cf = 0;
-			AliHLTUInt64_t codeLength;
-			AliHLTUInt64_t v;
-			int oldLength = 0;
-			int newLength[numberOfHuffmans+1];
-			for (unsigned int i = 0; i < numberOfHuffmans+1; i++) {
-				newLength[i] = 0;
-			}
-			for (int i = desc.size-1; i >= 0; i--) {
-				signal = desc.ptr[i];
-				if (signal < 0 || signal >= signalRange) continue;
-
-//				if (i == desc.size-1 || desc.ptr[i+1] >= signalRange) // fist signal
-				if (lastSignal < 0) // fist signal
-					diff = signal;
-				else
-					diff = (signal - lastSignal);
-
-				lastSignal = signal;
-				diff += signalRange;
-				
-				v = diff;
-				hltHuffman->Encode(v,codeLength);
-//				if (codeLength > 12) codeLength = 22;
-				newLength[numberOfHuffmans] += codeLength;
-
-				for (unsigned int j = 0; j < numberOfHuffmans; j++) {
-					if (!huffman[j]->EncodeValue(diff,&temp)) {
-						newLength[j] += 10;
-					}
-					newLength[j] += temp.size();
+	for (int k = 0; k < numberOfGenerators; k++) {
+		int result = 0;
+		while ((TimeFrameNumber++ < nFrames || nFrames < 0) && result >= 0) {
+			result = dg[k]->SimulateFrame();
+	    
+			if (result < 0) {
+		  		std::cout << "Simulation of timeframe failed with error code " << result << "; aborting at timeframe no " << TimeFrameNumber << std::endl;
+		  		continue;
+			} 
+	
+			std::vector<unsigned int> chindices=dg[k]->GetChannelIndices();
+			for (std::vector<unsigned int>::iterator index = chindices.begin(); index != chindices.end(); ++index) {
+				TPC::DataGenerator::ChannelDesc_t desc = dg[k]->GetChannelDescriptor(*index);
+				if (desc.ptr == NULL) continue;
+				int DDLnumber = ((*index)&0xffff0000)>>16;
+				int padrow = desc.padrow;
+				if (DDLnumber > 71) padrow += 63;
+		//			std::cout << desc.occupancy << std::endl;
+				if (desc.occupancy > occupancyMax) continue;
+				int signal = 0;
+				int lastSignal = -1;
+				int diff = 0;
+				std::string temp = "";
+				double cf = 0;
+				AliHLTUInt64_t codeLength;
+				AliHLTUInt64_t v;
+				int oldLength = 0;
+				int newLength[numberOfHuffmans+1];
+				for (int i = 0; i < numberOfHuffmans+1; i++) {
+					newLength[i] = 0;
 				}
-				oldLength += 10;
+				int sendUncompressed[numberOfHuffmans];
+				for (int i = 0; i < numberOfHuffmans; i++) {
+					sendUncompressed[i] = 0;
+				}
+				for (int i = desc.size-1; i >= 0; i--) {
+					signal = desc.ptr[i];
+					if (signal < 0 || signal >= signalRange) continue;
+	
+	//				if (i == desc.size-1 || desc.ptr[i+1] >= signalRange) // fist signal
+					if (lastSignal < 0) // fist signal
+						diff = signal;
+					else
+						diff = (signal - lastSignal);
+	
+					lastSignal = signal;
+					diff += signalRange;
+					
+					v = diff;
+					hltHuffman->Encode(v,codeLength);
+					if (codeLength > 12) codeLength = 22;
+					newLength[numberOfHuffmans] += codeLength;
+	
+					for (int j = 0; j < numberOfHuffmans; j++) {
+						if (sendUncompressed[j] == 0) {
+							if (!huffman[j]->EncodeValue(diff,&temp)) {
+								newLength[j] += 10;
+								sendUncompressed[j] = numberOfUncompressedWords;
+							}
+							newLength[j] += temp.size();
+						} else {
+							newLength[j] += 10;
+							sendUncompressed[j]--;
+						}
+					}
+					oldLength += 10;
+				}
+	
+				if (enableHeader) oldLength += headerSize;
+				for (int j = 0; j < numberOfHuffmans; j++) {
+					while (newLength[j] % 10 != 0) newLength[j]++;
+					if (enableHeader) newLength[j] += headerSize;
+					cf = (double)oldLength / (double)newLength[j];
+					hCompFactorLLHuffman[j]->Fill(desc.occupancy,cf);
+				}
+	
+				while (newLength[numberOfHuffmans] % 10 != 0) newLength[numberOfHuffmans]++;
+				if (enableHeader) newLength[numberOfHuffmans] += headerSize;
+				cf = (double)oldLength / (double)newLength[numberOfHuffmans];
+				hCompFactorStdHuffman->Fill(desc.occupancy,cf);
 			}
-
-			if (enableHeader) oldLength += headerSize;
-			for (unsigned int j = 0; j < numberOfHuffmans; j++) {
-				while (newLength[j] % 10 != 0) newLength[j]++;
-				if (enableHeader) newLength[j] += headerSize;
-				cf = (double)oldLength / (double)newLength[j];
-				hCompFactorLLHuffman[j]->Fill(desc.occupancy,cf);
-			}
-
-			while (newLength[numberOfHuffmans] % 10 != 0) newLength[numberOfHuffmans]++;
-			if (enableHeader) newLength[numberOfHuffmans] += headerSize;
-			cf = (double)oldLength / (double)newLength[numberOfHuffmans];
-			hCompFactorStdHuffman->Fill(desc.occupancy,cf);
 		}
-		std::cout << std::setprecision(3) << progress * 100 << " \% done"<< std::endl;
+		delete dg[k];
 	}
-	delete dg;
-
 
 	////////////////////////////////////////////////////////////////////////////////
 	// print and delete Histograms
@@ -323,6 +291,9 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 		return;
 	}
 
+	int markerPos = 0;
+	int color = 1;
+	int marker[9] = {2,5,24,25,26,27,28,30,32};
 	TProfile* hProfXStdHuffman;
 	if (hCompFactorStdHuffman) {
 		TString nameX(hCompFactorStdHuffman->GetName());
@@ -346,7 +317,7 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 		delete hCompFactorStdHuffman;
 	}
 	TProfile* hProfXLLHuffman[numberOfHuffmans];
-	for (unsigned int i = 0; i < numberOfHuffmans; i++) {
+	for (int i = 0; i < numberOfHuffmans; i++) {
 		if (hCompFactorLLHuffman[i]) {
 			TString nameX(hCompFactorLLHuffman[i]->GetName());
 			nameX += "_pfx";
@@ -508,7 +479,7 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 
     delete cnv4;
 */	delete hProfXStdHuffman;
-	for (unsigned int i = 0; i < numberOfHuffmans; i++) {
+	for (int i = 0; i < numberOfHuffmans; i++) {
 		delete hProfXLLHuffman[i];
 	}
 //	delete bandWithLimit;
@@ -524,7 +495,7 @@ void extractCompressionFactors(TString CurrentMacroName, int generatorConfigurat
 		delete hltHuffman;
 	}
 
-	for (unsigned int i = 0; i < numberOfHuffmans; i++) { 
+	for (int i = 0; i < numberOfHuffmans; i++) { 
 		if (huffman[i]) {
 			delete huffman[i];
 		}

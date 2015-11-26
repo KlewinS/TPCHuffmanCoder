@@ -1,8 +1,10 @@
 #!/bin/bash
 COUNTS_ALL=0
-for nCol in {1,2,3,4,5,6,7,8,9,10,11,13,15,17,19}; do
-	root -b -q -l generateHuffmanTable_run.C\($nCol\) > logs/generateHuffmanTable_run_"$nCol".log &
-	COUNTS_ALL=$((COUNTS_ALL+1))
+for config in {0,1,2,3,4,5,6,7}; do
+	for nCol in {5,7,9}; do
+		root -b -q -l generateHuffmanTable_run.C\($nCol\,$config\) > logs/generateHuffmanTable_run_"$nCol"_"$config".log &
+		COUNTS_ALL=$((COUNTS_ALL+1))
+	done
 done
 # wait for processes to finish
 wait

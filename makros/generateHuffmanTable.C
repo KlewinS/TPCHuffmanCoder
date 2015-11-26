@@ -21,7 +21,7 @@
 void printHist(TH1* hist, TString baseName);
 void printHist(TH2* hist, TString baseName);
 
-void generateHuffmanTable(TString CurrentMacroName, float rate)
+void generateHuffmanTable(TString CurrentMacroName, float rate,int generatorConfiguration)
 {
 	////////////////////////////////////////////////////////////////////////////////
     // input / output files
@@ -31,14 +31,17 @@ void generateHuffmanTable(TString CurrentMacroName, float rate)
 	TString MappingFileName("../../generator/mapping.dat");
 	TString PedestalFileName("../../generator/pedestal-statistics.txt");
 	TString VerilogLLHuffmanDecoderTable("VerilogHuffmanDecoderTable.v");
-	TString VerilogLLHuffmanCodeTable("VerilogHuffmanEnocderTable.v");
-	TString VerilogLLHuffmanLengthTable("VerilogHuffmanEncoderLengthTable.v");
+	TString VerilogLLHuffmanCodeTable("VerilogHuffmanEncoderTable.v");
 
 	TString baseName(CurrentMacroName);
 		baseName += "_";
 		baseName.Remove(baseName.Last('.'),2);
 		baseName += rate;
 		baseName += "rate_";
+
+		baseName += generatorConfiguration;
+		baseName += "generatorConfiguration_";
+
 	TString plotBaseName(baseName);
     	plotBaseName.Insert(plotBaseName.Last('/'),"/Plots");
     TString folderName(plotBaseName);
@@ -51,11 +54,11 @@ void generateHuffmanTable(TString CurrentMacroName, float rate)
 	////////////////////////////////////////////////////////////////////////////////
 	// configuration
 
-	const int nFrames = 10; 
+	const int nFrames = -1;//10; 
 	int TimeFrameNumber = 0;
 	// DDL range
-    const int DDLmin = -1;
-    const int DDLmax = -1;
+    const int DDLmin = 0;
+    const int DDLmax = 2;
 
 	// Padrow range
 	const int PadrowMin = -1;
@@ -88,7 +91,9 @@ void generateHuffmanTable(TString CurrentMacroName, float rate)
 	// Huffman
 	TString huffmanTableName("TPCRawSignalDifference_HuffmanTable_");
 	huffmanTableName += (mode==0||mode==2)?nCol:rate;
-	huffmanTableName += "mergedCollisions.root";
+	huffmanTableName += "mergedCollisions_";
+	huffmanTableName += generatorConfiguration;
+	huffmanTableName += "generatorConfiguration.root";
 	const char* huffmanDecoderName="TPCRawSignalDifference";
 
 	AliHLTHuffman* hltHuffman = NULL;
@@ -120,7 +125,60 @@ void generateHuffmanTable(TString CurrentMacroName, float rate)
 	dg->SetApplyZeroSuppression(false);
 	dg->SetNormalizeChannels(false);
 	dg->SetApplyCommonModeEffect(false);
+	dg->SetApplyGainVariation(false);
+	dg->SetNoiseLevel(0.5);
+	
+	switch (generatorConfiguration) {
+		case 1:
+			// apply common mode effect
+			dg->SetApplyCommonModeEffect(true);
+			break;
+
+		case 2:
+			// apply noise increase by factor of 2
+			dg->SetNoiseLevel(1.1);
+			break;
+
+		case 3:
+			// apply gain variation of 20 %
+			dg->InitGainVariation(1,0.2);
+			dg->SetApplyGainVariation(true);
+			break;
+
+		case 4:
+			// common mode effect + increased noise
+			dg->SetApplyCommonModeEffect(true);
+			dg->SetNoiseLevel(1.1);
+			break;
+
+		case 5:
+			// common mode effect + gain variation
+			dg->SetApplyCommonModeEffect(true);
+			dg->InitGainVariation(1,0.2);
+			dg->SetApplyGainVariation(true);
+			break;
+
+		case 6:
+			// increased noise + gain variation
+			dg->SetNoiseLevel(1.1);
+			dg->InitGainVariation(1,0.2);
+			dg->SetApplyGainVariation(true);
+			break;
+
+		case 7:
+			// common mode effect + increased noise + gain variation
+			dg->SetApplyCommonModeEffect(true);
+			dg->SetNoiseLevel(1.1);
+			dg->InitGainVariation(1,0.2);
+			dg->SetApplyGainVariation(true);
+			break;
+
+		default:
+			// no changes, default data generator
+			break;
+	}
 	dg->Init( (mode==0||mode==2)?nCol:rate, dataFiles);
+
 
 	////////////////////////////////////////////////////////////////////////////////
 	// start
@@ -204,7 +262,7 @@ void generateHuffmanTable(TString CurrentMacroName, float rate)
 	TPC::HuffmanCoder* huffman = NULL;
 	huffman = new TPC::HuffmanCoder(huffmanTableName.Data());
 	huffman->GenerateLengthLimitedHuffman(12,30);
-	huffman->WriteVerilogEncoderTable(VerilogLLHuffmanCodeTable.Data(),VerilogLLHuffmanLengthTable.Data());
+	huffman->WriteVerilogEncoderTable(VerilogLLHuffmanCodeTable.Data());
 	huffman->WriteVerilogDecoderTable(VerilogLLHuffmanDecoderTable.Data());
 	delete huffman;
 
