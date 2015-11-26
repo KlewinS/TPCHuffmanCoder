@@ -34,6 +34,9 @@ HuffmanCoder::HuffmanCoder(
 	, mHuffmanTable()
 	, mTruncatedHuffmanTable()
 	, mLengthLimitedHuffmanTable()
+	, mMapToUse(NULL)
+	, mMarkerLengthToUse(0)
+	, mMarkerToUse("")
 {
 }
 
@@ -122,6 +125,10 @@ bool HuffmanCoder::LoadHuffmanTableFromFile(const char* fileName)
 
 		mHuffmanTableExists = true;
 
+		mMapToUse = &mTruncatedHuffmanTable;
+		mMarkerToUse = mRawDataMarker;
+		mMarkerLengthToUse = mRawDataMarkerSize;
+
 		return true;
 	} else {
 		if (mDebug > kError) std::cerr << "ERROR: Could not open file " << fileName << " to read the Huffman Table, no table is loaded!" << std::endl;
@@ -130,27 +137,19 @@ bool HuffmanCoder::LoadHuffmanTableFromFile(const char* fileName)
 }
 
 bool HuffmanCoder::EncodeValue(unsigned int value, std::string *code) {
-	// if length limited Huffman is available and can be used, use it, else the standard one
-	std::map<unsigned int, HuffmanCode>* map = NULL;
-	std::string marker;
-	if (mLengthLimitedHuffman) {
-		map = &mLengthLimitedHuffmanTable;
-		marker = mLLRawDataMarker;
-	} else if (mHuffmanTableExists) {
-		map = &mTruncatedHuffmanTable;
-		marker = mRawDataMarker;
-	} else {
+	if (!mMapToUse) {
 		if (mDebug > kError) std::cerr << "ERROR: No Huffman table is available." << std::endl;
 		*code = "";
 		return false;
 	}
 
 	// if the value is not in the corresponding map, the code is set to the raw data marker
-	if (map->find(value) == map->end()) {
-		*code = marker;
+	std::map<unsigned int, HuffmanCode>::iterator it = mMapToUse->find(value);
+	if (it == mMapToUse->end()) {
+		*code = mMarkerToUse;
 		return false;
 	} else {
-		*code = (*map)[value].code;
+		*code = (*it).second.code;
 		return true;
 	}
 }
@@ -180,32 +179,20 @@ unsigned int HuffmanCoder::BinaryStringToInt(std::string value, unsigned int len
 
 bool HuffmanCoder::DecodeFirstValue(std::string *stream, unsigned int* value) {
 
-	// if length limited Huffman is available and can be used, use it, else the standard one
-	std::map<unsigned int, HuffmanCode>* map = NULL;
-	unsigned int maxCodeLength;
-	std::string marker;
-	if (mLengthLimitedHuffman) {
-		map = &mLengthLimitedHuffmanTable;
-		maxCodeLength = mLLMaxCodeLength;
-		marker = mLLRawDataMarker;
-	} else if (mHuffmanTableExists) {
-		map = &mTruncatedHuffmanTable;
-		maxCodeLength = mRawDataMarkerSize; //mMaxCodeLength + 1; // +1 because the raw data marker is 1 bit longer than other codes
-		marker = mRawDataMarker;
-	} else {
+	if (!mMapToUse) {
 		if (mDebug > kError) std::cerr << "ERROR: No Huffman table exists." << std::endl;
 		*value = 0;
 		return false;
 	}
 
 
-	unsigned int l = (maxCodeLength<stream->size()) ? maxCodeLength : stream->size();
+	unsigned int l = (mMarkerLengthToUse < stream->size()) ? mMarkerLengthToUse : stream->size();
 	// For each possible code lengths i, starting from 1 to the max code length,
 	// the first i characters are compared to the Huffman codes.
 	for (unsigned int i = 1; i <= l; i++) {
 		// should speed up, since integer comparison should be faster than string comparison
-		if (i == marker.size()) { 
-			if(stream->substr(0,i) == marker) {
+		if (i == mMarkerLengthToUse) { 
+			if(stream->substr(0,i) == mMarkerToUse) {
 				stream->erase(0,i);
 				*value = BinaryStringToInt(stream->substr(0,10));
 				stream->erase(0,10);
@@ -213,7 +200,7 @@ bool HuffmanCoder::DecodeFirstValue(std::string *stream, unsigned int* value) {
 			}
 		}
 
-		for (std::map<unsigned int, HuffmanCode>::iterator h_code = (*map).begin(); h_code != (*map).end(); h_code++) {
+		for (std::map<unsigned int, HuffmanCode>::iterator h_code = (*mMapToUse).begin(); h_code != (*mMapToUse).end(); h_code++) {
 			// should speed up, since integer comparison should be faster than string comparison
 			if (i != h_code->second.length) continue; 
 
@@ -294,6 +281,7 @@ bool HuffmanCoder::GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsi
 		}
 	}
 
+std::cout << mLLRawDataMarkerSize << std::endl;
 	// manipulate the code lengths in order to allow to fix the length of the raw data marker
 	if (mLLRawDataMarkerFixedSize != 0 || mLLRawDataMarkerMaxSize != 0) {
 
@@ -320,16 +308,17 @@ bool HuffmanCoder::GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsi
 			// until length is not reached, exchange the length of the marker with the length of and
 			// element wich comes next in the direction to the intended length
 			while (targetSize != mLLRawDataMarkerSize) {
-	
 				unsigned int lengthToFind = 
 					(targetSize > mLLRawDataMarkerSize) 
 					? (mLLRawDataMarkerSize+1)	// increase the length
 					: (mLLRawDataMarkerSize-1);	// decrease the length
 	
 	//			std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator lastInsertedElement = codeSet.end();
+				bool parterFound = false;
 				for (std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator it = codeSet.begin(); it != codeSet.end(); ++it) {
 					// find partner to swap
 					if (it->length == lengthToFind) { // && it != lastInsertedElement) {
+						parterFound = true;
 	
 						// make a copy and delete it from the set
 						HuffmanCode h_code = *it;
@@ -349,33 +338,37 @@ bool HuffmanCoder::GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsi
 						it++;
 					}
 				}
+				if (!parterFound) {
+					if (mDebug > kWarning) std::cout << "WARNING: Could not find another partner to swap, raw marker has now a length of " << mLLRawDataMarkerSize << std::endl;
+					break;
+				}
 			}
 		}
 	}
 
 	// 3) generate actual Huffman codes out of the lengths of the codes
+	bool processMarker = false;
+	int length;
 	int previousValue = -1;
 	int previousCodeLength = -1;
 	bool markerIncluded = false;
-	for (std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::reverse_iterator rit = codeSet.rbegin(); rit != codeSet.rend(); ++rit) {
-		int value;
-		int length;
-		if (rit->length <= mLLRawDataMarkerSize && !markerIncluded) {
-			if (previousCodeLength == -1) previousCodeLength = mLLRawDataMarkerSize;
-			rit--;
-			value = -1;
+	for (std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator it = codeSet.begin(); it != codeSet.end(); ++it) {
+		if (it->length >= mLLRawDataMarkerSize && !markerIncluded) {
+			it--;
 			length = mLLRawDataMarkerSize;
+			processMarker = true;
 			markerIncluded = true;
 		} else {
-			if (previousCodeLength == -1) previousCodeLength = rit->length;
-			value = rit->value;
-			length = rit->length;
+			length = it->length;
+			processMarker = false;
 		}
-		std::string code = IntToBinaryString((previousValue+1) >> (previousCodeLength - length), length);
-		if (value == -1) {
+		if (previousCodeLength == -1) previousCodeLength = length;
+
+		std::string code = IntToBinaryString((previousValue+1) << (length - previousCodeLength), length);
+		if (processMarker) {
 			mLLRawDataMarker = code;
 		} else {
-			HuffmanCode h_code = (*rit);
+			HuffmanCode h_code = (*it);
 			h_code.code = code; 
 			if (mLengthLimitedHuffmanTable.find(h_code.value) == mLengthLimitedHuffmanTable.end()) {
 				mLengthLimitedHuffmanTable[h_code.value] = h_code;
@@ -384,11 +377,14 @@ bool HuffmanCoder::GenerateLengthLimitedHuffman(unsigned int maxCodeLength, unsi
 			}
 		}
 
-		previousValue = (previousValue + 1) >> (previousCodeLength - length);
+		previousValue = (previousValue + 1) << (length - previousCodeLength);
 		previousCodeLength = length;
 	}
 
 	mLengthLimitedHuffman = true;
+	mMapToUse = &mLengthLimitedHuffmanTable;
+	mMarkerToUse = mLLRawDataMarker;
+	mMarkerLengthToUse = mLLRawDataMarkerSize;
 
 	return true;
 }
@@ -434,7 +430,7 @@ std::multimap<float, std::vector<int> > HuffmanCoder::Pack(std::multimap<float, 
 	return newMap;
 }
 
-bool HuffmanCoder::WriteVerilogEncoderTable(const char* codeFilename, const char* lengthFilename) {
+bool HuffmanCoder::WriteVerilogEncoderTable(const char* codeFilename) {
 	std::map<unsigned int, HuffmanCode>* map = NULL;
 	std::string marker;
 	unsigned int maxLength;
@@ -459,16 +455,17 @@ bool HuffmanCoder::WriteVerilogEncoderTable(const char* codeFilename, const char
 
 	// open output files
 	std::ofstream code(codeFilename,std::ios::out);
-	std::ofstream length(lengthFilename,std::ios::out);
 
-	if (code.is_open() && length.is_open()) {
+	if (code.is_open()) {
 
 		// write all Huffman codes
 		for (std::multiset<HuffmanCode,HuffmanCodeCompareCodelength>::iterator it = codeSet.begin(); it != codeSet.end(); it++) {
 			code 
 				<< "11'd" 
 				<< it->value 
-				<< ":\thuffmanCode <= {" 
+				<< ":\thuffmanCode <= {5'd" 
+				<< it->length
+				<< ","
 				<< maxLength - it->length 
 				<< "'b0, " 
 				<< it->length
@@ -476,19 +473,13 @@ bool HuffmanCoder::WriteVerilogEncoderTable(const char* codeFilename, const char
 				<< it->code
 				<< "};"
 				<< std::endl;
-
-			length
-				<< "11'd"
-				<< it->value
-				<< ":\thuffmanLength <= 5'd"
-				<< it->length
-				<< ";"
-				<< std::endl;
 		}
 
 		// write marker
 		code 
-			<< "default:\thuffmanCode <= {";
+			<< "default:\thuffmanCode <= {5'd"
+			<< marker.size() + 10
+			<< ",";
 		if (maxLength > (marker.size()+10)) {
 			code 
 				<< maxLength - (marker.size() +10)
@@ -501,20 +492,13 @@ bool HuffmanCoder::WriteVerilogEncoderTable(const char* codeFilename, const char
 			<< ", lastData};"
 			<< std::endl;
 		
-		length
-			<< "default:\thuffmanLength <= 5'd"
-			<< marker.size() + 10
-			<< ";"
-			<< std::endl;
-
 	} else {
-		if (mDebug > kError) std::cerr << "ERROR: Could not open file " << codeFilename << " or " << lengthFilename << std::endl;
+		if (mDebug > kError) std::cerr << "ERROR: Could not open file " << codeFilename << std::endl;
 		return false;
 	}
 
 	// close files
 	code.close();
-	length.close();
 
 	return true;
 }
@@ -555,10 +539,14 @@ bool HuffmanCoder::WriteVerilogDecoderTable(const char* codeFilename) {
 				<< it->code;
 			for (unsigned int i = 0; i < (maxLength - it->length); i++) code << "?";
 			code
-				<< ":\tvalue <= 10'd"
+				<< ": begin" << std::endl
+				<< "\tdecodedData <= 11'd"
 				<< it->value
-				<< ";"
-				<< std::endl;
+				<< ";" << std::endl
+				<< "\tdecodedLength <= 5'd"
+				<< it->length
+				<< ";" << std::endl
+				<< "end" << std::endl;
 		}
 
 		// write marker
@@ -568,11 +556,13 @@ bool HuffmanCoder::WriteVerilogDecoderTable(const char* codeFilename) {
 			<< marker;
 			for (unsigned int i = 0; i < (maxLength - marker.size()); i++) code << "?";
 		code
-			<< ":" << std::endl
-			<< "\tbegin" << std::endl
-			<< "\t\tvalue <= code[9:0];" << std::endl
-			<< "\t\trawData <= 1;" << std::endl
-			<< "\tend"
+			<< ": begin" << std::endl
+			<< "\tdecodedData <= code[9:0];" << std::endl
+			<< "\tdecodedLength <= 5'd"
+			<< 10+marker.size()
+			<< ";" << std::endl
+			<< "\trawData <= 1;" << std::endl
+			<< "end"
 			<< std::endl;
 	} else {
 		if (mDebug > kError) std::cerr << "ERROR: Could not open file " << codeFilename << std::endl;

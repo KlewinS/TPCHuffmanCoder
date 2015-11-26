@@ -149,15 +149,13 @@ class HuffmanCoder
 
 		/*
 		 * Writes the truncated or, if available, length-limited Huffman tables into the specified
-		 * files in Verilog coding style. Those tables can be included in a 'case'-statement. One 
-		 * table is written for the lengths of the Huffman codes and one table for the actual codes.
+		 * files in Verilog coding style. Those tables can be included in a 'case'-statement. 
 		 */
-		bool WriteVerilogEncoderTable(const char* codeFilename, const char* lengthFilename);
+		bool WriteVerilogEncoderTable(const char* codeFilename);
 
 		/*
 		 * Writes the truncated or, if available, length-limited Huffman tables into the specified
-		 * files in Verilog coding style. Those tables can be included in a 'case'-statement. One 
-		 * table is written for the lengths of the Huffman codes and one table for the actual codes.
+		 * files in Verilog coding style. Those tables can be included in a 'case'-statement. 
 		 */
 		bool WriteVerilogDecoderTable(const char* codeFilename);
 
@@ -251,6 +249,10 @@ class HuffmanCoder
 		std::map<unsigned int, HuffmanCode> mHuffmanTable;
 		std::map<unsigned int, HuffmanCode> mTruncatedHuffmanTable;
 		std::map<unsigned int, HuffmanCode> mLengthLimitedHuffmanTable;
+
+		std::map<unsigned int, HuffmanCode>* mMapToUse;
+		unsigned int mMarkerLengthToUse;
+		std::string mMarkerToUse;
 };
 
 }
